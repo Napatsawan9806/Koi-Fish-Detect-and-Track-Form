@@ -15,6 +15,7 @@ namespace KoiTracker {
         _btnPause->Click += gcnew EventHandler(this, &MainForm::BtnPause_Click);
         _btnStop->Click += gcnew EventHandler(this, &MainForm::BtnStop_Click);
         _btnHeatmap->Click += gcnew EventHandler(this, &MainForm::BtnHeatmap_Click);
+        _btnSchooling->Click += gcnew EventHandler(this, &MainForm::BtnSchooling_Click);
 
         _pictureBox->Paint += gcnew PaintEventHandler(this, &MainForm::OnPictureBoxPaint);
         _pictureBox->Click += gcnew EventHandler(this, &MainForm::OnPictureBoxClick);
@@ -86,9 +87,7 @@ namespace KoiTracker {
     //  DRAWING
     // =====================================================
 
-    void MainForm::DrawPondBackground(Graphics^ g) {
-        // ไม่ใช้แล้ว
-    }
+    void MainForm::DrawPondBackground(Graphics^ g) {}
 
     void MainForm::OnPictureBoxPaint(Object^ sender, PaintEventArgs^ e) {
         if (_currentFishes == nullptr || _currentFishes->Count == 0) return;
@@ -97,14 +96,16 @@ namespace KoiTracker {
         Graphics^ g = e->Graphics;
         g->SmoothingMode = Drawing2D::SmoothingMode::AntiAlias;
 
-        // วาด heatmap ก่อน (อยู่ใต้ trajectory)
+        // 1) heatmap (ชั้นล่างสุด)
         DrawHeatmap(g);
 
-        // คำนวณ scale video → PictureBox
         float scaleX = (float)_pictureBox->Width / _pictureBox->Image->Width;
         float scaleY = (float)_pictureBox->Height / _pictureBox->Image->Height;
 
-        // วาด trajectory
+        // 2) schooling lines
+        DrawSchooling(g, scaleX, scaleY);
+
+        // 3) trajectory (ชั้นบนสุด)
         for each (FishTrack ^ fish in _currentFishes) {
             if (fish->Status == FishStatus::Lost) continue;
             List<PointF>^ pts = fish->Trajectory;
@@ -124,7 +125,6 @@ namespace KoiTracker {
         MouseEventArgs^ me = safe_cast<MouseEventArgs^>(e);
         if (_pictureBox->Image == nullptr) return;
 
-        // แปลง click coordinate → video coordinate
         float scaleX = (float)_pictureBox->Image->Width / _pictureBox->Width;
         float scaleY = (float)_pictureBox->Image->Height / _pictureBox->Height;
         float videoX = me->X * scaleX;
@@ -151,6 +151,52 @@ namespace KoiTracker {
     }
 
     // =====================================================
+    //  SCHOOLING
+    // =====================================================
+
+    void MainForm::DrawSchooling(Graphics^ g, float scaleX, float scaleY) {
+        if (!_showSchooling) return;
+
+        // รัศมี schooling ในหน่วย video pixel
+        const float SCHOOL_RADIUS = 120.0f;
+
+        // วาดเส้นเชื่อมระหว่างปลาที่อยู่ใกล้กัน
+        for (int i = 0; i < _currentFishes->Count; i++) {
+            FishTrack^ a = _currentFishes[i];
+            if (a->Status == FishStatus::Lost) continue;
+
+            for (int j = i + 1; j < _currentFishes->Count; j++) {
+                FishTrack^ b = _currentFishes[j];
+                if (b->Status == FishStatus::Lost) continue;
+
+                float dx = a->Center.X - b->Center.X;
+                float dy = a->Center.Y - b->Center.Y;
+                float dist = (float)Math::Sqrt((double)(dx * dx + dy * dy));
+
+                if (dist <= SCHOOL_RADIUS) {
+                    // ยิ่งใกล้ยิ่ง opaque
+                    float t = 1.0f - (dist / SCHOOL_RADIUS);
+                    int alpha = (int)(t * 180);
+
+                    PointF pa = PointF(a->Center.X * scaleX, a->Center.Y * scaleY);
+                    PointF pb = PointF(b->Center.X * scaleX, b->Center.Y * scaleY);
+
+                    Pen^ pen = gcnew Pen(Color::FromArgb(alpha, 120, 255, 180), 1.5f);
+                    pen->DashStyle = Drawing2D::DashStyle::Dash;
+                    g->DrawLine(pen, pa, pb);
+                    delete pen;
+
+                    // วงกลมเล็กที่ center ของปลาแต่ละตัว
+                    SolidBrush^ dot = gcnew SolidBrush(Color::FromArgb(alpha, 120, 255, 180));
+                    g->FillEllipse(dot, pa.X - 4.0f, pa.Y - 4.0f, 8.0f, 8.0f);
+                    g->FillEllipse(dot, pb.X - 4.0f, pb.Y - 4.0f, 8.0f, 8.0f);
+                    delete dot;
+                }
+            }
+        }
+    }
+
+    // =====================================================
     //  HEATMAP
     // =====================================================
 
@@ -158,8 +204,8 @@ namespace KoiTracker {
         if (!_showHeatmap) return;
         if (_heatmapData == nullptr)
             _heatmapData = gcnew array<int, 2>(_pictureBox->Height, _pictureBox->Width);
-
         if (_pictureBox->Image == nullptr) return;
+
         float scaleX = (float)_pictureBox->Width / _pictureBox->Image->Width;
         float scaleY = (float)_pictureBox->Height / _pictureBox->Image->Height;
 
@@ -266,7 +312,45 @@ namespace KoiTracker {
         _lblStatActive->Text = active.ToString();
         _lblStatLost->Text = lost.ToString();
         _lblStatTotal->Text = total.ToString();
-        _lblStatSpecies->Text = L"";
+
+        // นับจำนวนคู่ที่ schooling
+        if (_showSchooling) {
+            const float SCHOOL_RADIUS = 120.0f;
+
+            // Union-Find แบบง่าย — ใช้ Dictionary แทน
+            Dictionary<int, int>^ group = gcnew Dictionary<int, int>();
+            int groupId = 0;
+
+            for (int i = 0; i < fishes->Count; i++) {
+                if (fishes[i]->Status == FishStatus::Lost) continue;
+                if (!group->ContainsKey(i)) group[i] = groupId++;
+
+                for (int j = i + 1; j < fishes->Count; j++) {
+                    if (fishes[j]->Status == FishStatus::Lost) continue;
+                    float dx = fishes[i]->Center.X - fishes[j]->Center.X;
+                    float dy = fishes[i]->Center.Y - fishes[j]->Center.Y;
+                    if (Math::Sqrt((double)(dx * dx + dy * dy)) <= SCHOOL_RADIUS) {
+                        // j เข้ากลุ่มเดียวกับ i
+                        group[j] = group[i];
+                    }
+                    else {
+                        if (!group->ContainsKey(j)) group[j] = groupId++;
+                    }
+                }
+            }
+
+            // นับกลุ่มที่มีสมาชิกมากกว่า 1 ตัว
+            Dictionary<int, int>^ groupSize = gcnew Dictionary<int, int>();
+            for each (KeyValuePair<int, int> kv in group) {
+                if (!groupSize->ContainsKey(kv.Value)) groupSize[kv.Value] = 0;
+                groupSize[kv.Value]++;
+            }
+            int schoolGroups = 0;
+            for each (KeyValuePair<int, int> kv in groupSize)
+                if (kv.Value > 1) schoolGroups++;
+
+            _lblStatSpecies->Text = String::Format("Schooling groups: {0}", schoolGroups);
+        }
     }
 
     // =====================================================
@@ -284,8 +368,14 @@ namespace KoiTracker {
         _btnHeatmap->BackColor = _showHeatmap
             ? Color::FromArgb(180, 60, 60)
             : Color::FromArgb(60, 80, 160);
-        if (!_showHeatmap)
-            _heatmapData = nullptr;
+        if (!_showHeatmap) _heatmapData = nullptr;
+        _pictureBox->Invalidate();
+    }
+    void MainForm::BtnSchooling_Click(Object^ sender, EventArgs^ e) {
+        _showSchooling = !_showSchooling;
+        _btnSchooling->BackColor = _showSchooling
+            ? Color::FromArgb(180, 60, 60)
+            : Color::FromArgb(80, 120, 60);
         _pictureBox->Invalidate();
     }
 
@@ -327,6 +417,7 @@ namespace KoiTracker {
         _btnStop->Enabled = false;
         _lblFps->Text = "FPS: --";
         _lblFishCount->Text = "Fish: 0";
+        _lblStatSpecies->Text = L"";
         Log(String::Format("[{0}] Tracking stopped", DateTime::Now.ToString("HH:mm:ss")));
     }
 
@@ -371,7 +462,5 @@ namespace KoiTracker {
         _grid->Columns["ColSeen"]->AutoSizeMode = DataGridViewAutoSizeColumnMode::None;
     }
 
-    void MainForm::AddStatItem(String^ label, Label^% valRef, Color color, int x) {
-        // ไม่ใช้งาน
-    }
+    void MainForm::AddStatItem(String^ label, Label^% valRef, Color color, int x) {}
 }

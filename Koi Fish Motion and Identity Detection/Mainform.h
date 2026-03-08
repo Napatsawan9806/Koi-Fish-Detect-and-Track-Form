@@ -20,6 +20,7 @@ namespace KoiTracker {
             _frameBitmap = nullptr;
             _heatmapData = nullptr;
             _showHeatmap = false;
+            _showSchooling = false;
             InitializeComponent();
             StyleGrid();
             WireEvents();
@@ -35,12 +36,14 @@ namespace KoiTracker {
         Bitmap^ _frameBitmap;
         array<int, 2>^ _heatmapData;
         bool _showHeatmap;
+        bool _showSchooling;
 
         System::Windows::Forms::Panel^ _toolbar;
         System::Windows::Forms::Button^ _btnStart;
         System::Windows::Forms::Button^ _btnPause;
         System::Windows::Forms::Button^ _btnStop;
         System::Windows::Forms::Button^ _btnHeatmap;
+        System::Windows::Forms::Button^ _btnSchooling;
         System::Windows::Forms::Label^ _lblTitle;
         System::Windows::Forms::Label^ _lblFps;
         System::Windows::Forms::Label^ _lblFishCount;
@@ -72,6 +75,7 @@ namespace KoiTracker {
             _btnPause = gcnew System::Windows::Forms::Button();
             _btnStop = gcnew System::Windows::Forms::Button();
             _btnHeatmap = gcnew System::Windows::Forms::Button();
+            _btnSchooling = gcnew System::Windows::Forms::Button();
             _lblTitle = gcnew System::Windows::Forms::Label();
             _lblFps = gcnew System::Windows::Forms::Label();
             _lblFishCount = gcnew System::Windows::Forms::Label();
@@ -108,6 +112,7 @@ namespace KoiTracker {
             _toolbar->Controls->Add(_btnPause);
             _toolbar->Controls->Add(_btnStop);
             _toolbar->Controls->Add(_btnHeatmap);
+            _toolbar->Controls->Add(_btnSchooling);
             _toolbar->Controls->Add(_lblFps);
             _toolbar->Controls->Add(_lblFishCount);
 
@@ -126,7 +131,7 @@ namespace KoiTracker {
             _btnStart->ForeColor = System::Drawing::Color::White;
             _btnStart->Location = System::Drawing::Point(200, 10);
             _btnStart->Name = L"_btnStart";
-            _btnStart->Size = System::Drawing::Size(88, 30);
+            _btnStart->Size = System::Drawing::Size(80, 30);
             _btnStart->Text = L"Start";
             _btnStart->Cursor = System::Windows::Forms::Cursors::Hand;
 
@@ -136,9 +141,9 @@ namespace KoiTracker {
             _btnPause->FlatAppearance->BorderSize = 0;
             _btnPause->Font = gcnew System::Drawing::Font(L"Segoe UI", 9, System::Drawing::FontStyle::Bold);
             _btnPause->ForeColor = System::Drawing::Color::White;
-            _btnPause->Location = System::Drawing::Point(295, 10);
+            _btnPause->Location = System::Drawing::Point(287, 10);
             _btnPause->Name = L"_btnPause";
-            _btnPause->Size = System::Drawing::Size(88, 30);
+            _btnPause->Size = System::Drawing::Size(80, 30);
             _btnPause->Text = L"Pause";
             _btnPause->Cursor = System::Windows::Forms::Cursors::Hand;
 
@@ -148,9 +153,9 @@ namespace KoiTracker {
             _btnStop->FlatAppearance->BorderSize = 0;
             _btnStop->Font = gcnew System::Drawing::Font(L"Segoe UI", 9, System::Drawing::FontStyle::Bold);
             _btnStop->ForeColor = System::Drawing::Color::White;
-            _btnStop->Location = System::Drawing::Point(390, 10);
+            _btnStop->Location = System::Drawing::Point(374, 10);
             _btnStop->Name = L"_btnStop";
-            _btnStop->Size = System::Drawing::Size(88, 30);
+            _btnStop->Size = System::Drawing::Size(80, 30);
             _btnStop->Text = L"Stop";
             _btnStop->Cursor = System::Windows::Forms::Cursors::Hand;
 
@@ -159,17 +164,28 @@ namespace KoiTracker {
             _btnHeatmap->FlatAppearance->BorderSize = 0;
             _btnHeatmap->Font = gcnew System::Drawing::Font(L"Segoe UI", 9, System::Drawing::FontStyle::Bold);
             _btnHeatmap->ForeColor = System::Drawing::Color::White;
-            _btnHeatmap->Location = System::Drawing::Point(490, 10);
+            _btnHeatmap->Location = System::Drawing::Point(461, 10);
             _btnHeatmap->Name = L"_btnHeatmap";
-            _btnHeatmap->Size = System::Drawing::Size(88, 30);
+            _btnHeatmap->Size = System::Drawing::Size(80, 30);
             _btnHeatmap->Text = L"Heatmap";
             _btnHeatmap->Cursor = System::Windows::Forms::Cursors::Hand;
+
+            _btnSchooling->BackColor = System::Drawing::Color::FromArgb(80, 120, 60);
+            _btnSchooling->FlatStyle = System::Windows::Forms::FlatStyle::Flat;
+            _btnSchooling->FlatAppearance->BorderSize = 0;
+            _btnSchooling->Font = gcnew System::Drawing::Font(L"Segoe UI", 9, System::Drawing::FontStyle::Bold);
+            _btnSchooling->ForeColor = System::Drawing::Color::White;
+            _btnSchooling->Location = System::Drawing::Point(548, 10);
+            _btnSchooling->Name = L"_btnSchooling";
+            _btnSchooling->Size = System::Drawing::Size(80, 30);
+            _btnSchooling->Text = L"Schooling";
+            _btnSchooling->Cursor = System::Windows::Forms::Cursors::Hand;
 
             _lblFps->AutoSize = true;
             _lblFps->BackColor = System::Drawing::Color::Transparent;
             _lblFps->Font = gcnew System::Drawing::Font(L"Segoe UI", 9);
             _lblFps->ForeColor = System::Drawing::Color::FromArgb(150, 200, 150);
-            _lblFps->Location = System::Drawing::Point(600, 17);
+            _lblFps->Location = System::Drawing::Point(645, 17);
             _lblFps->Name = L"_lblFps";
             _lblFps->Text = L"FPS: --";
 
@@ -177,7 +193,7 @@ namespace KoiTracker {
             _lblFishCount->BackColor = System::Drawing::Color::Transparent;
             _lblFishCount->Font = gcnew System::Drawing::Font(L"Segoe UI", 9);
             _lblFishCount->ForeColor = System::Drawing::Color::FromArgb(200, 200, 120);
-            _lblFishCount->Location = System::Drawing::Point(680, 17);
+            _lblFishCount->Location = System::Drawing::Point(720, 17);
             _lblFishCount->Name = L"_lblFishCount";
             _lblFishCount->Text = L"Fish: 0";
 
@@ -328,6 +344,7 @@ namespace KoiTracker {
         void BtnPause_Click(Object^ sender, EventArgs^ e);
         void BtnStop_Click(Object^ sender, EventArgs^ e);
         void BtnHeatmap_Click(Object^ sender, EventArgs^ e);
+        void BtnSchooling_Click(Object^ sender, EventArgs^ e);
         void StartTracking();
         void StopTracking();
         void UpdateGrid(List<FishTrack^>^ fishes);
@@ -335,6 +352,7 @@ namespace KoiTracker {
         void DrawPondBackground(Graphics^ g);
         void AccumulateHeatmap(List<FishTrack^>^ fishes);
         void DrawHeatmap(Graphics^ g);
+        void DrawSchooling(Graphics^ g, float scaleX, float scaleY);
         void StyleGrid();
         void Log(String^ msg);
         void SafeLog(String^ msg);

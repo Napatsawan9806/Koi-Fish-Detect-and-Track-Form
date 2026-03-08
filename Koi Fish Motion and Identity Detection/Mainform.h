@@ -18,6 +18,8 @@ namespace KoiTracker {
             _currentFishes = gcnew List<FishTrack^>();
             _detailForm = nullptr;
             _frameBitmap = nullptr;
+            _heatmapData = nullptr;
+            _showHeatmap = false;
             InitializeComponent();
             StyleGrid();
             WireEvents();
@@ -26,19 +28,19 @@ namespace KoiTracker {
     protected:
         ~MainForm() { if (components) delete components; }
 
-        // =====================================================
-        //  CONTROL DECLARATIONS  (Designer อ่านส่วนนี้)
-        // =====================================================
     private:
         DetectionService^ _service;
         List<FishTrack^>^ _currentFishes;
         FishDetailForm^ _detailForm;
         Bitmap^ _frameBitmap;
+        array<int, 2>^ _heatmapData;
+        bool _showHeatmap;
 
         System::Windows::Forms::Panel^ _toolbar;
         System::Windows::Forms::Button^ _btnStart;
         System::Windows::Forms::Button^ _btnPause;
         System::Windows::Forms::Button^ _btnStop;
+        System::Windows::Forms::Button^ _btnHeatmap;
         System::Windows::Forms::Label^ _lblTitle;
         System::Windows::Forms::Label^ _lblFps;
         System::Windows::Forms::Label^ _lblFishCount;
@@ -61,9 +63,6 @@ namespace KoiTracker {
 
         System::ComponentModel::Container^ components;
 
-        // =====================================================
-        //  InitializeComponent — Designer อ่านฟังก์ชันนี้
-        // =====================================================
     private:
         void InitializeComponent() {
             components = gcnew System::ComponentModel::Container();
@@ -72,6 +71,7 @@ namespace KoiTracker {
             _btnStart = gcnew System::Windows::Forms::Button();
             _btnPause = gcnew System::Windows::Forms::Button();
             _btnStop = gcnew System::Windows::Forms::Button();
+            _btnHeatmap = gcnew System::Windows::Forms::Button();
             _lblTitle = gcnew System::Windows::Forms::Label();
             _lblFps = gcnew System::Windows::Forms::Label();
             _lblFishCount = gcnew System::Windows::Forms::Label();
@@ -107,6 +107,7 @@ namespace KoiTracker {
             _toolbar->Controls->Add(_btnStart);
             _toolbar->Controls->Add(_btnPause);
             _toolbar->Controls->Add(_btnStop);
+            _toolbar->Controls->Add(_btnHeatmap);
             _toolbar->Controls->Add(_lblFps);
             _toolbar->Controls->Add(_lblFishCount);
 
@@ -153,11 +154,22 @@ namespace KoiTracker {
             _btnStop->Text = L"Stop";
             _btnStop->Cursor = System::Windows::Forms::Cursors::Hand;
 
+            _btnHeatmap->BackColor = System::Drawing::Color::FromArgb(60, 80, 160);
+            _btnHeatmap->FlatStyle = System::Windows::Forms::FlatStyle::Flat;
+            _btnHeatmap->FlatAppearance->BorderSize = 0;
+            _btnHeatmap->Font = gcnew System::Drawing::Font(L"Segoe UI", 9, System::Drawing::FontStyle::Bold);
+            _btnHeatmap->ForeColor = System::Drawing::Color::White;
+            _btnHeatmap->Location = System::Drawing::Point(490, 10);
+            _btnHeatmap->Name = L"_btnHeatmap";
+            _btnHeatmap->Size = System::Drawing::Size(88, 30);
+            _btnHeatmap->Text = L"Heatmap";
+            _btnHeatmap->Cursor = System::Windows::Forms::Cursors::Hand;
+
             _lblFps->AutoSize = true;
             _lblFps->BackColor = System::Drawing::Color::Transparent;
             _lblFps->Font = gcnew System::Drawing::Font(L"Segoe UI", 9);
             _lblFps->ForeColor = System::Drawing::Color::FromArgb(150, 200, 150);
-            _lblFps->Location = System::Drawing::Point(510, 17);
+            _lblFps->Location = System::Drawing::Point(600, 17);
             _lblFps->Name = L"_lblFps";
             _lblFps->Text = L"FPS: --";
 
@@ -165,7 +177,7 @@ namespace KoiTracker {
             _lblFishCount->BackColor = System::Drawing::Color::Transparent;
             _lblFishCount->Font = gcnew System::Drawing::Font(L"Segoe UI", 9);
             _lblFishCount->ForeColor = System::Drawing::Color::FromArgb(200, 200, 120);
-            _lblFishCount->Location = System::Drawing::Point(590, 17);
+            _lblFishCount->Location = System::Drawing::Point(680, 17);
             _lblFishCount->Name = L"_lblFishCount";
             _lblFishCount->Text = L"Fish: 0";
 
@@ -302,9 +314,6 @@ namespace KoiTracker {
             this->PerformLayout();
         }
 
-        // =====================================================
-        //  METHOD DECLARATIONS  (logic อยู่ใน MainForm.cpp)
-        // =====================================================
     private:
         void WireEvents();
         void OnFrameUpdated(List<FishTrack^>^ fishes);
@@ -318,11 +327,14 @@ namespace KoiTracker {
         void BtnStart_Click(Object^ sender, EventArgs^ e);
         void BtnPause_Click(Object^ sender, EventArgs^ e);
         void BtnStop_Click(Object^ sender, EventArgs^ e);
+        void BtnHeatmap_Click(Object^ sender, EventArgs^ e);
         void StartTracking();
         void StopTracking();
         void UpdateGrid(List<FishTrack^>^ fishes);
         void UpdateStats(List<FishTrack^>^ fishes);
         void DrawPondBackground(Graphics^ g);
+        void AccumulateHeatmap(List<FishTrack^>^ fishes);
+        void DrawHeatmap(Graphics^ g);
         void StyleGrid();
         void Log(String^ msg);
         void SafeLog(String^ msg);

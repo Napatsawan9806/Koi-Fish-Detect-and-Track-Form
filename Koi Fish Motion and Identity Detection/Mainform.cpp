@@ -1,4 +1,4 @@
-#include "MainForm.h"
+Ôªø#include "MainForm.h"
 #include <cmath>
 
 namespace KoiTracker {
@@ -8,23 +8,19 @@ namespace KoiTracker {
     // =====================================================
 
     void MainForm::WireEvents() {
-
         _service->OnFrameBitmap += gcnew KoiTracker::FrameBitmapHandler(
             this, &MainForm::OnFrameBitmap);
 
-        // wire button events
         _btnStart->Click += gcnew EventHandler(this, &MainForm::BtnStart_Click);
         _btnPause->Click += gcnew EventHandler(this, &MainForm::BtnPause_Click);
         _btnStop->Click += gcnew EventHandler(this, &MainForm::BtnStop_Click);
+        _btnHeatmap->Click += gcnew EventHandler(this, &MainForm::BtnHeatmap_Click);
 
-        // wire picturebox
         _pictureBox->Paint += gcnew PaintEventHandler(this, &MainForm::OnPictureBoxPaint);
         _pictureBox->Click += gcnew EventHandler(this, &MainForm::OnPictureBoxClick);
 
-        // wire grid
         _grid->CellDoubleClick += gcnew DataGridViewCellEventHandler(this, &MainForm::OnGridDoubleClick);
 
-        // wire service events
         _service->OnFrameUpdated += gcnew FrameUpdatedHandler(this, &MainForm::OnFrameUpdated);
         _service->OnFishDetected += gcnew FishEventHandler(this, &MainForm::OnFishDetected);
         _service->OnFishLost += gcnew FishEventHandler(this, &MainForm::OnFishLost);
@@ -43,19 +39,18 @@ namespace KoiTracker {
         }
 
         _currentFishes = fishes;
+        AccumulateHeatmap(fishes);
         _pictureBox->Invalidate();
 
         UpdateGrid(fishes);
         UpdateStats(fishes);
 
-        // Õ—æ‡¥µ Detail Form ∂È“‡ª‘¥Õ¬ŸË
         if (_detailForm != nullptr && !_detailForm->IsDisposed) {
             int detailId = (int)_detailForm->Tag;
             for each (FishTrack ^ f in fishes)
                 if (f->FishID == detailId) { _detailForm->UpdateData(f); break; }
         }
 
-        // π—∫ª≈“∑’Ë active
         int active = 0;
         for each (FishTrack ^ f in fishes)
             if (f->Status != FishStatus::Lost) active++;
@@ -63,11 +58,11 @@ namespace KoiTracker {
     }
 
     void MainForm::OnFishDetected(FishTrack^ fish) {
-        SafeLog(String::Format("[{0}] NEW  #{1} ({2})", DateTime::Now.ToString("HH:mm:ss"), fish->FishID, fish->Species.ToString()));
+        SafeLog(String::Format("[{0}] NEW  #{1}", DateTime::Now.ToString("HH:mm:ss"), fish->FishID));
     }
 
     void MainForm::OnFishLost(FishTrack^ fish) {
-        SafeLog(String::Format("[{0}] LOST #{1} ({2})", DateTime::Now.ToString("HH:mm:ss"), fish->FishID, fish->Species.ToString()));
+        SafeLog(String::Format("[{0}] LOST #{1}", DateTime::Now.ToString("HH:mm:ss"), fish->FishID));
     }
 
     void MainForm::OnFpsUpdated(int fps) {
@@ -88,11 +83,11 @@ namespace KoiTracker {
     }
 
     // =====================================================
-    //  DRAWING (trajectory overlay ∫π PictureBox)
+    //  DRAWING
     // =====================================================
 
     void MainForm::DrawPondBackground(Graphics^ g) {
-        // ‰¡Ë„™È·≈È« ó frame ®√‘ß¡“®“° DetectionService
+        // ‡πÑ‡∏°‡πà‡πÉ‡∏ä‡πâ‡πÅ‡∏•‡πâ‡∏ß
     }
 
     void MainForm::OnPictureBoxPaint(Object^ sender, PaintEventArgs^ e) {
@@ -102,9 +97,14 @@ namespace KoiTracker {
         Graphics^ g = e->Graphics;
         g->SmoothingMode = Drawing2D::SmoothingMode::AntiAlias;
 
+        // ‡∏ß‡∏≤‡∏î heatmap ‡∏Å‡πà‡∏≠‡∏ô (‡∏≠‡∏¢‡∏π‡πà‡πÉ‡∏ï‡πâ trajectory)
+        DrawHeatmap(g);
+
+        // ‡∏Ñ‡∏≥‡∏ô‡∏ß‡∏ì scale video ‚Üí PictureBox
         float scaleX = (float)_pictureBox->Width / _pictureBox->Image->Width;
         float scaleY = (float)_pictureBox->Height / _pictureBox->Image->Height;
 
+        // ‡∏ß‡∏≤‡∏î trajectory
         for each (FishTrack ^ fish in _currentFishes) {
             if (fish->Status == FishStatus::Lost) continue;
             List<PointF>^ pts = fish->Trajectory;
@@ -124,6 +124,7 @@ namespace KoiTracker {
         MouseEventArgs^ me = safe_cast<MouseEventArgs^>(e);
         if (_pictureBox->Image == nullptr) return;
 
+        // ‡πÅ‡∏õ‡∏•‡∏á click coordinate ‚Üí video coordinate
         float scaleX = (float)_pictureBox->Image->Width / _pictureBox->Width;
         float scaleY = (float)_pictureBox->Image->Height / _pictureBox->Height;
         float videoX = me->X * scaleX;
@@ -132,9 +133,8 @@ namespace KoiTracker {
         for each (FishTrack ^ fish in _currentFishes) {
             if (fish->Status == FishStatus::Lost) continue;
             if (fish->BoundingBox.Contains(videoX, videoY)) {
-                Log(String::Format("[{0}] Click #{1} ({2}) conf={3}",
-                    DateTime::Now.ToString("HH:mm:ss"), fish->FishID,
-                    fish->Species.ToString(), fish->ConfidenceText));
+                Log(String::Format("[{0}] Click #{1} conf={2}",
+                    DateTime::Now.ToString("HH:mm:ss"), fish->FishID, fish->ConfidenceText));
                 if (_detailForm == nullptr || _detailForm->IsDisposed) {
                     _detailForm = gcnew FishDetailForm(fish);
                     _detailForm->Tag = fish->FishID;
@@ -151,6 +151,60 @@ namespace KoiTracker {
     }
 
     // =====================================================
+    //  HEATMAP
+    // =====================================================
+
+    void MainForm::AccumulateHeatmap(List<FishTrack^>^ fishes) {
+        if (!_showHeatmap) return;
+        if (_heatmapData == nullptr)
+            _heatmapData = gcnew array<int, 2>(_pictureBox->Height, _pictureBox->Width);
+
+        if (_pictureBox->Image == nullptr) return;
+        float scaleX = (float)_pictureBox->Width / _pictureBox->Image->Width;
+        float scaleY = (float)_pictureBox->Height / _pictureBox->Image->Height;
+
+        for each (FishTrack ^ fish in fishes) {
+            if (fish->Status == FishStatus::Lost) continue;
+            int px = (int)(fish->Center.X * scaleX);
+            int py = (int)(fish->Center.Y * scaleY);
+            int radius = 20;
+            for (int dy = -radius; dy <= radius; dy++) {
+                for (int dx = -radius; dx <= radius; dx++) {
+                    int nx = px + dx, ny = py + dy;
+                    if (nx < 0 || ny < 0 || nx >= _pictureBox->Width || ny >= _pictureBox->Height) continue;
+                    float dist = (float)Math::Sqrt((double)(dx * dx + dy * dy));
+                    if (dist < radius)
+                        _heatmapData[ny, nx] += (int)((1.0f - dist / radius) * 5);
+                }
+            }
+        }
+    }
+
+    void MainForm::DrawHeatmap(Graphics^ g) {
+        if (!_showHeatmap || _heatmapData == nullptr) return;
+
+        int maxVal = 1;
+        for (int y = 0; y < _pictureBox->Height; y++)
+            for (int x = 0; x < _pictureBox->Width; x++)
+                if (_heatmapData[y, x] > maxVal) maxVal = _heatmapData[y, x];
+
+        int step = 4;
+        for (int y = 0; y < _pictureBox->Height; y += step) {
+            for (int x = 0; x < _pictureBox->Width; x += step) {
+                float t = Math::Min(1.0f, (float)_heatmapData[y, x] / maxVal);
+                if (t < 0.05f) continue;
+                int alpha = (int)(t * 160);
+                int r = (int)(255 * Math::Min(1.0f, t * 2));
+                int g2 = (int)(255 * Math::Max(0.0f, 1.0f - Math::Abs(t - 0.5f) * 2));
+                int b = (int)(255 * Math::Max(0.0f, 1.0f - t * 2));
+                SolidBrush^ brush = gcnew SolidBrush(Color::FromArgb(alpha, r, g2, b));
+                g->FillRectangle(brush, x, y, step, step);
+                delete brush;
+            }
+        }
+    }
+
+    // =====================================================
     //  GRID
     // =====================================================
 
@@ -160,7 +214,6 @@ namespace KoiTracker {
             int row = _grid->Rows->Add(
                 f->StatusIcon,
                 String::Format("#{0}", f->FishID),
-                f->Species.ToString(),
                 f->ConfidenceText,
                 String::Format("{0:F1}", f->Speed),
                 f->FirstSeen.ToString("HH:mm:ss")
@@ -213,18 +266,7 @@ namespace KoiTracker {
         _lblStatActive->Text = active.ToString();
         _lblStatLost->Text = lost.ToString();
         _lblStatTotal->Text = total.ToString();
-
-        System::Collections::Generic::Dictionary<KoiSpecies, int>^ counts =
-            gcnew System::Collections::Generic::Dictionary<KoiSpecies, int>();
-        for each (FishTrack ^ f in fishes) {
-            if (f->Status == FishStatus::Lost) continue;
-            if (!counts->ContainsKey(f->Species)) counts[f->Species] = 0;
-            counts[f->Species]++;
-        }
-        System::Text::StringBuilder^ sb = gcnew System::Text::StringBuilder("Species:  ");
-        for each (System::Collections::Generic::KeyValuePair<KoiSpecies, int> kv in counts)
-            sb->AppendFormat("{0}: {1}   ", kv.Key.ToString(), kv.Value);
-        _lblStatSpecies->Text = sb->ToString();
+        _lblStatSpecies->Text = L"";
     }
 
     // =====================================================
@@ -237,19 +279,26 @@ namespace KoiTracker {
         _service->Pause();
         _btnPause->Text = _service->IsRunning ? "Pause" : "Resume";
     }
+    void MainForm::BtnHeatmap_Click(Object^ sender, EventArgs^ e) {
+        _showHeatmap = !_showHeatmap;
+        _btnHeatmap->BackColor = _showHeatmap
+            ? Color::FromArgb(180, 60, 60)
+            : Color::FromArgb(60, 80, 160);
+        if (!_showHeatmap)
+            _heatmapData = nullptr;
+        _pictureBox->Invalidate();
+    }
 
     // =====================================================
     //  TRACKING CONTROL
     // =====================================================
 
     void MainForm::StartTracking() {
-        // ‡ª‘¥ dialog ‡≈◊Õ°«‘¥’‚Õ
         OpenFileDialog^ dlg = gcnew OpenFileDialog();
-        dlg->Title = L"‡≈◊Õ°‰ø≈Ï«‘¥’‚Õ";
+        dlg->Title = L"‡πÄ‡∏•‡∏∑‡∏≠‡∏Å‡πÑ‡∏ü‡∏•‡πå‡∏ß‡∏¥‡∏î‡∏µ‡πÇ‡∏≠";
         dlg->Filter = L"Video Files|*.mp4;*.avi;*.mov;*.mkv|All Files|*.*";
         if (dlg->ShowDialog() != System::Windows::Forms::DialogResult::OK) return;
 
-        // À“ path ‚¡‡¥≈„π folder ‡¥’¬«°—∫ .exe
         String^ exeDir = System::IO::Path::GetDirectoryName(
             System::Reflection::Assembly::GetExecutingAssembly()->Location);
         String^ modelPath = System::IO::Path::Combine(exeDir, L"best50.onnx");
@@ -269,6 +318,7 @@ namespace KoiTracker {
     void MainForm::StopTracking() {
         _service->Stop();
         _currentFishes->Clear();
+        _heatmapData = nullptr;
         _pictureBox->Image = nullptr;
         _pictureBox->Invalidate();
         _grid->Rows->Clear();
@@ -309,7 +359,6 @@ namespace KoiTracker {
 
         _grid->Columns->Add("ColSt", "");
         _grid->Columns->Add("ColID", "ID");
-        _grid->Columns->Add("ColSpecies", "Species");
         _grid->Columns->Add("ColConf", "Conf");
         _grid->Columns->Add("ColSpeed", "Speed");
         _grid->Columns->Add("ColSeen", "Seen");
@@ -323,6 +372,6 @@ namespace KoiTracker {
     }
 
     void MainForm::AddStatItem(String^ label, Label^% valRef, Color color, int x) {
-        // ‰¡Ë„™Èß“π ó stat labels init „π InitializeComponent ·≈È«
+        // ‡πÑ‡∏°‡πà‡πÉ‡∏ä‡πâ‡∏á‡∏≤‡∏ô
     }
 }

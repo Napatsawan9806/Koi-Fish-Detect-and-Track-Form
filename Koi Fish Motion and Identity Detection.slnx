@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Koi Fish Motion and Identity Detection/Koi Fish Motion and Identity Detection.vcxproj" />
+</Solution>

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where cudnn64*.dll)",
+      "Read(//c/Windows/System32/**)",
+      "Bash(nvidia-smi:*)",
+      "Bash(cp:*)"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+x64/
+Debug/
+Release/
+.vs/
+*.user
+*.suo
+*.db
+*.opendb
+*.pdb
+*.aps
+ipch/
+
+# Ignore โฟลเดอร์ย่อยทั้งหมดที่อยู่ใน data/
+data/*/
+MODEL_train/runs/*/
+MODEL_train/runs_new/*/
+
+# Ignore all PyTorch weights
+*.pt
+*.pth

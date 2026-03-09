@@ -30,20 +30,20 @@
 namespace Config {
     constexpr int   INPUT_W = 640;
     constexpr int   INPUT_H = 640;
-    constexpr float CONF_THRESH = 0.2f;
+    constexpr float CONF_THRESH = 0.4f;
     constexpr float OVERLAP_THRESH = 0.8f;
     constexpr int   MAX_BOX_W = 80;
     constexpr int   MAX_BOX_H = 80;
     constexpr float GAMMA = 0.50f;
-    constexpr int   PROCESS_EVERY = 3;
-    constexpr float BOX_SMOOTH = 1.0f;
+    constexpr int   PROCESS_EVERY = 2;
+    constexpr float BOX_SMOOTH = 0.7f;
 
     constexpr float W_IOU = 0.45f;
     constexpr float W_COLOR = 0.35f;
     constexpr float W_MOTION = 0.20f;
     constexpr float MATCH_THRESH = 0.25f;
     constexpr int   MAX_MISS = 12;
-    constexpr int   MAX_MISS_DELETE = 20;
+    constexpr int   MAX_MISS_DELETE = 28;
     constexpr float HIST_LR = 0.08f;
     constexpr int   HIST_BINS = 32;
     constexpr float REID_THRESH = 0.55f;

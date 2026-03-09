@@ -11,7 +11,7 @@ namespace KoiTracker {
     // ─── Custom paint canvas for accumulated position heatmap ─────────────────
     public ref class HeatmapPanel : public Control {
     public:
-        array<int, 2>^   Accum;         // [CanvasH, CanvasW] accumulated counts
+        array<int, 2>^ Accum;         // [CanvasH, CanvasW] accumulated counts
         int              CanvasW;
         int              CanvasH;
         int              MaxVal;
@@ -23,16 +23,16 @@ namespace KoiTracker {
 
         HeatmapPanel() {
             CanvasW = 640; CanvasH = 480;
-            Accum   = nullptr;
-            MaxVal  = 0; FrameCount = 0; ActiveFish = 0;
+            Accum = nullptr;
+            MaxVal = 0; FrameCount = 0; ActiveFish = 0;
             CurrentFishes = nullptr;
             LastVideoW = 640; LastVideoH = 480;
             this->DoubleBuffered = true;
         }
 
         void Reset() {
-            Accum      = gcnew array<int, 2>(CanvasH, CanvasW);
-            MaxVal     = 0;
+            Accum = gcnew array<int, 2>(CanvasH, CanvasW);
+            MaxVal = 0;
             FrameCount = 0;
             ActiveFish = 0;
             Invalidate();
@@ -42,19 +42,19 @@ namespace KoiTracker {
         void Accumulate(List<FishTrack^>^ fishes, int videoW, int videoH) {
             if (videoW <= 0) videoW = CanvasW;
             if (videoH <= 0) videoH = CanvasH;
-            LastVideoW    = videoW;
-            LastVideoH    = videoH;
+            LastVideoW = videoW;
+            LastVideoH = videoH;
             CurrentFishes = fishes;
 
             if (Accum == nullptr)
                 Accum = gcnew array<int, 2>(CanvasH, CanvasW);
 
-            float scX   = (float)CanvasW / videoW;
-            float scY   = (float)CanvasH / videoH;
+            float scX = (float)CanvasW / videoW;
+            float scY = (float)CanvasH / videoH;
             const int R = 28;
 
             ActiveFish = 0;
-            for each (FishTrack^ f in fishes) {
+            for each (FishTrack ^ f in fishes) {
                 if (f->Status == FishStatus::Lost) continue;
                 ActiveFish++;
                 int px = (int)(f->Center.X * scX);
@@ -88,14 +88,14 @@ namespace KoiTracker {
 
             if (Accum == nullptr || MaxVal <= 0) {
                 Drawing::Font^ fnt = gcnew Drawing::Font("Segoe UI", 11);
-                SolidBrush^    br  = gcnew SolidBrush(Color::FromArgb(55, 80, 160));
+                SolidBrush^ br = gcnew SolidBrush(Color::FromArgb(55, 80, 160));
                 g->DrawString(L"Waiting for tracking data...\nStart tracking to begin recording.",
                     fnt, br, 40.0f, (float)(this->Height / 2 - 24));
                 delete fnt; delete br;
                 return;
             }
 
-            float dScX = (float)this->Width  / CanvasW;
+            float dScX = (float)this->Width / CanvasW;
             float dScY = (float)this->Height / CanvasH;
             const int step = 4;
 
@@ -143,19 +143,19 @@ namespace KoiTracker {
 
             // ── Current fish positions as white dots ─────────────────────────
             if (CurrentFishes != nullptr) {
-                float fishScX = (LastVideoW > 0) ? (float)this->Width  / LastVideoW : 1.0f;
+                float fishScX = (LastVideoW > 0) ? (float)this->Width / LastVideoW : 1.0f;
                 float fishScY = (LastVideoH > 0) ? (float)this->Height / LastVideoH : 1.0f;
                 Drawing::Font^ fnt = gcnew Drawing::Font("Segoe UI", 7.5f, FontStyle::Bold);
 
-                for each (FishTrack^ f in CurrentFishes) {
+                for each (FishTrack ^ f in CurrentFishes) {
                     if (f->Status == FishStatus::Lost) continue;
                     float px = f->Center.X * fishScX;
                     float py = f->Center.Y * fishScY;
 
                     SolidBrush^ dotBr = gcnew SolidBrush(f->TrackColor);
-                    Pen^        ring  = gcnew Pen(Color::White, 1.5f);
+                    Pen^ ring = gcnew Pen(Color::White, 1.5f);
                     g->FillEllipse(dotBr, px - 5.0f, py - 5.0f, 10.0f, 10.0f);
-                    g->DrawEllipse(ring,  px - 7.0f, py - 7.0f, 14.0f, 14.0f);
+                    g->DrawEllipse(ring, px - 7.0f, py - 7.0f, 14.0f, 14.0f);
                     delete dotBr; delete ring;
 
                     SolidBrush^ txtBr = gcnew SolidBrush(Color::White);
@@ -175,9 +175,13 @@ namespace KoiTracker {
         void BtnClear_Click(Object^ sender, EventArgs^ e);
         void BtnClose_Click(Object^ sender, EventArgs^ e);
 
+        // Properties for Dashboard to read heatmap stats
+        property int LastPeak { int get(); }
+        property int LastFrameCount { int get(); }
+
     private:
         HeatmapPanel^ _canvas;
-        Label^        _lblStats;
+        Label^ _lblStats;
 
         void InitializeComponent();
     };

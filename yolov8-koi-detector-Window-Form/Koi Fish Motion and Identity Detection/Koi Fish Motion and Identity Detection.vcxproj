@@ -107,18 +107,18 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\libs\opencv\build\include;C:\libs\onnxruntime\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\opencv\build\include;D:\onnxruntime-win-x64-1.17.3\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>opencv_world4120.lib;onnxruntime.lib</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>C:\libs\onnxruntime\lib;C:\libs\opencv\build\x64\vc16\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\onnxruntime-win-x64-1.17.3\lib;C:\opencv\build\x64\vc16\lib</AdditionalLibraryDirectories>
       <EntryPointSymbol>Main</EntryPointSymbol>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(ProjectDir)x64\$(Configuration)\best50.onnx" "$(OutDir)best50.onnx"
-copy /Y "C:\libs\onnxruntime\lib\*.dll" "$(OutDir)"</Command>
+      <Command>copy /Y "$(SolutionDir)Koi Fish Motion and Identity Detection\x64\Release\best50.onnx" 
+"$(OutDir)best50.onnx"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -129,6 +129,7 @@ copy /Y "C:\libs\onnxruntime\lib\*.dll" "$(OutDir)"</Command>
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Analysisdashboardform.cpp" />
     <ClCompile Include="BehaviorAnalysisForm.cpp" />
     <ClCompile Include="DetectionService.cpp" />
     <ClCompile Include="Fishdetailform.cpp" />
@@ -141,6 +142,7 @@ copy /Y "C:\libs\onnxruntime\lib\*.dll" "$(OutDir)"</Command>
     <ClCompile Include="SchoolingForm.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Analysisdashboardform.h" />
     <ClInclude Include="BehaviorAnalysisForm.h" />
     <ClInclude Include="DetectionService.h">
       <FileType>CppForm</FileType>

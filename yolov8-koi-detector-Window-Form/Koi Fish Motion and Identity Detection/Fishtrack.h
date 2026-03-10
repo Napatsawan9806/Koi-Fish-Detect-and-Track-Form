@@ -49,8 +49,8 @@ namespace KoiTracker {
         // Behavior Analysis fields
         float           AvgSpeed;
         ActivityLevel   Activity;
-        array<int>^     ZoneVisits;      // 3x3 grid = 9 zones
-        array<float>^   SpeedHistory;    // circular buffer, 30 entries
+        array<int>^ ZoneVisits;      // 3x3 grid = 9 zones
+        array<float>^ SpeedHistory;    // circular buffer, 30 entries
         int             SpeedHistoryIdx;
         bool            IsIsolated;
         int             IsolationFrames;
@@ -78,56 +78,59 @@ namespace KoiTracker {
             IsIsolated = false;
             IsolationFrames = 0;
 
+            // BoundingBox เริ่มต้นจาก startPos (center)
+            // Trajectory จะถูก add จาก Center จริงๆ ใน DetectionService
+            // หลังจาก BoundingBox ถูก set แล้ว ไม่ add ที่นี่
             BoundingBox = RectangleF(startPos.X - 25, startPos.Y - 15, 50, 30);
-            Trajectory->Add(startPos);
+            // ไม่ add Trajectory ที่นี่ -- จะ add จาก Center ที่แม่นยำใน UpdateFishes
         }
 
         // ���˹觡�ҧ bounding box
-        property PointF Center {
+        property PointF Center{
             PointF get() {
                 return PointF(BoundingBox.X + BoundingBox.Width / 2.0f,
                     BoundingBox.Y + BoundingBox.Height / 2.0f);
             }
         }
 
-        // ��ͤ��� confidence
-        property String^ ConfidenceText {
-            String^ get() {
-                return String::Format("{0:F0}%", Confidence * 100);
-            }
-        }
-
-        // �ͤ͹ʶҹ�
-        property String^ StatusIcon {
-            String^ get() {
-                switch (Status) {
-                case FishStatus::New:    return L"[NEW]";
-                case FishStatus::Active: return L"[OK]";
-                case FishStatus::Lost:   return L"[!]";
-                default:                 return L"[?]";
+            // ��ͤ��� confidence
+            property String^ ConfidenceText{
+                String ^ get() {
+                    return String::Format("{0:F0}%", Confidence * 100);
                 }
-            }
         }
 
-        // Activity level as short text
-        property String^ ActivityText {
-            String^ get() {
-                switch (Activity) {
-                case ActivityLevel::Resting:  return L"REST";
-                case ActivityLevel::Cruising: return L"CRSE";
-                case ActivityLevel::Active:   return L"ACTV";
-                case ActivityLevel::Erratic:  return L"ERTC";
-                default:                      return L"----";
+            // �ͤ͹ʶҹ�
+            property String^ StatusIcon{
+                String ^ get() {
+                    switch (Status) {
+                    case FishStatus::New:    return L"[NEW]";
+                    case FishStatus::Active: return L"[OK]";
+                    case FishStatus::Lost:   return L"[!]";
+                    default:                 return L"[?]";
+                    }
                 }
-            }
         }
 
-        // ���ҷ�� track ������
-        property String^ DurationText {
-            String^ get() {
-                TimeSpan dur = DateTime::Now - FirstSeen;
-                return String::Format("{0:D2}:{1:D2}", (int)dur.TotalMinutes, dur.Seconds);
-            }
+            // Activity level as short text
+            property String^ ActivityText{
+                String ^ get() {
+                    switch (Activity) {
+                    case ActivityLevel::Resting:  return L"REST";
+                    case ActivityLevel::Cruising: return L"CRSE";
+                    case ActivityLevel::Active:   return L"ACTV";
+                    case ActivityLevel::Erratic:  return L"ERTC";
+                    default:                      return L"----";
+                    }
+                }
+        }
+
+            // ���ҷ�� track ������
+            property String^ DurationText{
+                String ^ get() {
+                    TimeSpan dur = DateTime::Now - FirstSeen;
+                    return String::Format("{0:D2}:{1:D2}", (int)dur.TotalMinutes, dur.Seconds);
+                }
         }
 
     private:

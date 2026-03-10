@@ -30,7 +30,7 @@
 namespace Config {
     constexpr int   INPUT_W = 640;
     constexpr int   INPUT_H = 640;
-    constexpr float CONF_THRESH = 0.4f;
+    constexpr float CONF_THRESH = 0.5f;
     constexpr float OVERLAP_THRESH = 0.8f;
     constexpr int   MAX_BOX_W = 80;
     constexpr int   MAX_BOX_H = 80;

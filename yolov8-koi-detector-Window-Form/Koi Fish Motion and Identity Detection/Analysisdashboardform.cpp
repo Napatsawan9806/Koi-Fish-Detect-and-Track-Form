@@ -59,6 +59,10 @@ namespace KoiTracker {
     //  Constructor
     // ============================================================
     AnalysisDashboardForm::AnalysisDashboardForm() {
+        _rawScoreHistory = gcnew array<int>(SCORE_SMOOTH);
+        for (int i = 0; i < SCORE_SMOOTH; i++) _rawScoreHistory[i] = 100;
+        _scoreHistoryIdx = 0;
+        _smoothedScore = 100;
         InitializeComponent();
     }
 
@@ -436,17 +440,29 @@ namespace KoiTracker {
     {
         int score = 100;
         int active = 0, erratic = 0, isolated = 0;
-        for each (FishTrack ^ f in fishes) {
+        for each(FishTrack ^ f in fishes) {
             if (f->Status == FishStatus::Lost) continue;
             active++;
             if (f->Activity == ActivityLevel::Erratic) erratic++;
             if (f->IsIsolated) isolated++;
         }
-        score -= alertCount * 5;
-        score -= isolated * 8;
+
+        // Alert penalty: ลดลงทีละ 3 คะแนน แต่สูงสุดลดได้แค่ 30
+        // (เดิม alertCount*5 ไม่มี cap — ทำให้กระโดดแรง)
+        score -= Math::Min(alertCount * 3, 30);
+
+        // Isolated penalty: ลดลงทีละ 6 แต่สูงสุด 24
+        score -= Math::Min(isolated * 6, 24);
+
+        // Speed penalty/bonus
         if (pondAvg < 0.1f) score -= 10;
+
+        // Schooling bonus
         if (schoolingPct > 60.0f) score += 10;
+
+        // Erratic penalty
         if (active > 0 && (float)erratic / active > 0.30f) score -= 10;
+
         return Math::Max(0, Math::Min(100, score));
     }
 
@@ -470,7 +486,7 @@ namespace KoiTracker {
         // ── Basic metrics ──────────────────────────────────────────────
         float totalSpeed = 0.0f;
         int   activeCount = 0;
-        for each (FishTrack ^ f in fishes) {
+        for each(FishTrack ^ f in fishes) {
             if (f->Status == FishStatus::Lost) continue;
             totalSpeed += f->AvgSpeed;
             activeCount++;
@@ -496,7 +512,7 @@ namespace KoiTracker {
             ? (float)schoolingCount / activeCount * 100.0f : 0.0f;
 
         int isolatedCount = 0;
-        for each (FishTrack ^ f in fishes)
+        for each(FishTrack ^ f in fishes)
             if (f->IsIsolated) isolatedCount++;
 
         // Alerts
@@ -506,7 +522,7 @@ namespace KoiTracker {
         const float HYPERACTIVE_RATIO = 3.0f;
 
         if (pondAvg > 0.1f && activeCount > 1) {
-            for each (FishTrack ^ f in fishes) {
+            for each(FishTrack ^ f in fishes) {
                 if (f->Status == FishStatus::Lost || f->FrameCount < 30) continue;
                 if (f->AvgSpeed < pondAvg * LETHARGY_RATIO) {
                     _alertLog->Items->Add(String::Format(
@@ -536,8 +552,14 @@ namespace KoiTracker {
             _alertLog->ForeColor = Color::FromArgb(255, 180, 80);
         }
 
-        // Health score
-        int   score = ComputeHealthScore(fishes, pondAvg, schoolingPct, alertCount);
+        // Health score — compute raw then smooth with rolling average
+        int rawScore = ComputeHealthScore(fishes, pondAvg, schoolingPct, alertCount);
+        _rawScoreHistory[_scoreHistoryIdx] = rawScore;
+        _scoreHistoryIdx = (_scoreHistoryIdx + 1) % SCORE_SMOOTH;
+
+        int scoreSum = 0;
+        for (int i = 0; i < SCORE_SMOOTH; i++) scoreSum += _rawScoreHistory[i];
+        int   score = scoreSum / SCORE_SMOOTH;
         Color sColor = ScoreColor(score);
 
         _lblScore->Text = score.ToString();
@@ -554,15 +576,17 @@ namespace KoiTracker {
 
         // Score breakdown
         int erraticCnt = 0, actCnt = 0;
-        for each (FishTrack ^ f in fishes) {
+        for each(FishTrack ^ f in fishes) {
             if (f->Status == FishStatus::Lost) continue;
             actCnt++;
             if (f->Activity == ActivityLevel::Erratic) erraticCnt++;
         }
         _lblScoreDetail->Text = String::Format(
-            "Base 100  |  Alerts -{0}  |  Isolated -{1}  |  Speed {2}  |  Schooling {3}  |  Erratic {4}",
-            alertCount * 5,
-            isolatedCount * 8,
+            "Raw {0}  ->  Smoothed {1}/100  |  Alerts -{2}  |  Isolated -{3}  |  Speed {4}  |  Schooling {5}  |  Erratic {6}",
+            rawScore,
+            score,
+            Math::Min(alertCount * 3, 30),
+            Math::Min(isolatedCount * 6, 24),
             (pondAvg < 0.1f ? "-10 (no movement)" : "OK"),
             (schoolingPct > 60.0f ? "+10" : "--"),
             (actCnt > 0 && (float)erraticCnt / actCnt > 0.30f ? "-10" : "OK"));
@@ -606,7 +630,7 @@ namespace KoiTracker {
         FishTrack^ fastest = nullptr;
         FishTrack^ slowest = nullptr;
 
-        for each (FishTrack ^ f in fishes) {
+        for each(FishTrack ^ f in fishes) {
             if (f->Status == FishStatus::Lost) continue;
             activeCount++;
             switch (f->Activity) {

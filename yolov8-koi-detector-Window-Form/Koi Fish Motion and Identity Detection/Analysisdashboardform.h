@@ -77,6 +77,12 @@ namespace KoiTracker {
         ListBox^ _alertLog;
         RichTextBox^ _summaryBox;
 
+        // ── Health Score smoothing (rolling average of last 20 values) ──
+        static const int SCORE_SMOOTH = 20;
+        array<int>^ _rawScoreHistory;
+        int          _scoreHistoryIdx;
+        int          _smoothedScore;
+
         void  InitializeComponent();
         void  BtnClear_Click(Object^ sender, EventArgs^ e);
         void  BtnClose_Click(Object^ sender, EventArgs^ e);

@@ -272,7 +272,7 @@ namespace KoiTracker {
 
             // หาว่ามี FishTrack นี้อยู่แล้วมั้ย
             FishTrack^ existing = nullptr;
-            for each (FishTrack ^ f in _fishes)
+            for each(FishTrack ^ f in _fishes)
                 if (f->FishID == sd.id) { existing = f; break; }
 
             if (existing == nullptr) {
@@ -288,12 +288,21 @@ namespace KoiTracker {
             // อัพเดตข้อมูล  (แปลงจาก ROI-local → full-frame video coords)
             float ox = (float)RoiRect.X;
             float oy = (float)RoiRect.Y;
-            existing->BoundingBox = RectangleF(sd.x1 + ox, sd.y1 + oy,
+
+            // 1. Set BoundingBox ก่อนเสมอ — Center property อ่านจาก BoundingBox
+            existing->BoundingBox = RectangleF(
+                sd.x1 + ox, sd.y1 + oy,
                 (float)sd.bbox_w, (float)sd.bbox_h);
             existing->Confidence = sd.conf;
 
-            // trajectory (full-frame video coords)
-            PointF newCenter = PointF((float)sd.center_x + ox, (float)sd.center_y + oy);
+            // 2. Center จาก BoundingBox จริง (full-frame coords)
+            PointF newCenter = existing->Center;
+
+            // 3. ถ้าเป็นปลาใหม่ (Trajectory ว่างอยู่) ให้ add จุดเริ่มต้นที่ Center จริง
+            if (existing->Trajectory->Count == 0)
+                existing->Trajectory->Add(newCenter);
+
+            // 4. Add trajectory ต่อเนื่อง
             existing->Trajectory->Add(newCenter);
             if (existing->Trajectory->Count > 120)
                 existing->Trajectory->RemoveAt(0);
@@ -320,14 +329,14 @@ namespace KoiTracker {
             existing->AvgSpeed = (validCount > 0) ? speedSum / validCount : 0.0f;
 
             // classify activity
-            if      (existing->AvgSpeed < 2.0f)  existing->Activity = ActivityLevel::Resting;
+            if (existing->AvgSpeed < 2.0f)  existing->Activity = ActivityLevel::Resting;
             else if (existing->AvgSpeed < 8.0f)  existing->Activity = ActivityLevel::Cruising;
             else if (existing->AvgSpeed < 20.0f) existing->Activity = ActivityLevel::Active;
             else                                  existing->Activity = ActivityLevel::Erratic;
 
             // zone visits (3x3 grid in video-coordinate space)
             if (_videoSize.Width > 0 && _videoSize.Height > 0) {
-                int zx = Math::Max(0, Math::Min(2, (int)(newCenter.X / _videoSize.Width  * 3)));
+                int zx = Math::Max(0, Math::Min(2, (int)(newCenter.X / _videoSize.Width * 3)));
                 int zy = Math::Max(0, Math::Min(2, (int)(newCenter.Y / _videoSize.Height * 3)));
                 existing->ZoneVisits[zy * 3 + zx]++;
             }
@@ -342,7 +351,7 @@ namespace KoiTracker {
         }
 
         // ปลาที่หายไป
-        for each (FishTrack ^ f in _fishes)
+        for each(FishTrack ^ f in _fishes)
             if (!currentIds->ContainsKey(f->FishID) && f->Status != FishStatus::Lost) {
                 f->Status = FishStatus::Lost;
                 OnFishLost(f);
